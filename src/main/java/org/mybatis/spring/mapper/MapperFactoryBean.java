@@ -15,13 +15,13 @@
  */
 package org.mybatis.spring.mapper;
 
-import static org.springframework.util.Assert.notNull;
-
 import org.apache.ibatis.executor.ErrorContext;
 import org.apache.ibatis.session.Configuration;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.mybatis.spring.support.SqlSessionDaoSupport;
 import org.springframework.beans.factory.FactoryBean;
+
+import static org.springframework.util.Assert.notNull;
 
 /**
  * BeanFactory that enables injection of MyBatis mapper interfaces. It can be set up with a
@@ -50,6 +50,9 @@ import org.springframework.beans.factory.FactoryBean;
  * @author Eduardo Macarron
  *
  * @see SqlSessionTemplate
+ *
+ * MapperFactoryBean 实现 FactoryBean 接口，因此可以在 getObject() 方法时进行额外处理；
+ * MapperFactoryBean 继承了 SqlSessionDaoSupport 类，因此可以间接持有 SqlSessionTemplate 实例（用于代替 DefaultSqlSession 进行 SQL 操作）
  */
 public class MapperFactoryBean<T> extends SqlSessionDaoSupport implements FactoryBean<T> {
 
@@ -92,6 +95,7 @@ public class MapperFactoryBean<T> extends SqlSessionDaoSupport implements Factor
    */
   @Override
   public T getObject() throws Exception {
+    // 通过 SqlSessionTemplate#getMapper 返回 Mapper 解耦对应的实例（实际上返回 Mapper 接口的代理对象）
     return getSqlSession().getMapper(this.mapperInterface);
   }
 

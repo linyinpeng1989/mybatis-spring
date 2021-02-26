@@ -15,11 +15,6 @@
  */
 package org.mybatis.spring.mapper;
 
-import static org.springframework.util.Assert.notNull;
-
-import java.lang.annotation.Annotation;
-import java.util.Map;
-
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.beans.PropertyValue;
@@ -38,6 +33,11 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.util.StringUtils;
+
+import java.lang.annotation.Annotation;
+import java.util.Map;
+
+import static org.springframework.util.Assert.notNull;
 
 /**
  * BeanDefinitionRegistryPostProcessor that searches recursively starting from a base package for
@@ -315,6 +315,8 @@ public class MapperScannerConfigurer implements BeanDefinitionRegistryPostProces
     scanner.setResourceLoader(this.applicationContext);
     scanner.setBeanNameGenerator(this.nameGenerator);
     scanner.registerFilters();
+
+    // 扫描 Mapper 接口文件
     scanner.scan(StringUtils.tokenizeToStringArray(this.basePackage, ConfigurableApplicationContext.CONFIG_LOCATION_DELIMITERS));
   }
 

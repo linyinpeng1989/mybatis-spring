@@ -15,8 +15,6 @@
  */
 package org.mybatis.spring;
 
-import static org.springframework.util.Assert.notNull;
-
 import org.apache.ibatis.exceptions.PersistenceException;
 import org.apache.ibatis.mapping.Environment;
 import org.apache.ibatis.session.ExecutorType;
@@ -31,6 +29,8 @@ import org.springframework.dao.support.PersistenceExceptionTranslator;
 import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.transaction.support.TransactionSynchronizationAdapter;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+import static org.springframework.util.Assert.notNull;
 
 /**
  * Handles MyBatis SqlSession life cycle. It can register and get SqlSessions from
@@ -87,16 +87,22 @@ public final class SqlSessionUtils {
     notNull(sessionFactory, NO_SQL_SESSION_FACTORY_SPECIFIED);
     notNull(executorType, NO_EXECUTOR_TYPE_SPECIFIED);
 
+
+    // 从 Spring 事务管理器中获取 SqlSessionHolder 对象
     SqlSessionHolder holder = (SqlSessionHolder) TransactionSynchronizationManager.getResource(sessionFactory);
 
+    // 通过 SqlSessionHolder 对象解析其持有的 SqlSession 实例
     SqlSession session = sessionHolder(executorType, holder);
     if (session != null) {
       return session;
     }
 
+    // 如果 Spring 事务管理器中不存在 SqlSessionHolder 对象，或 SqlSessionHolder 无法解析获得 SqlSession，
+    // 则通过 SqlSessionFactory#openSession() 创建 SqlSession 实例
     LOGGER.debug(() -> "Creating a new SqlSession");
     session = sessionFactory.openSession(executorType);
 
+    // 将 SqlSession 封装成 SqlSessionHolder 对象并注册
     registerSessionHolder(sessionFactory, executorType, exceptionTranslator, session);
 
     return session;
@@ -126,6 +132,7 @@ public final class SqlSessionUtils {
 
         holder = new SqlSessionHolder(session, executorType, exceptionTranslator);
         TransactionSynchronizationManager.bindResource(sessionFactory, holder);
+        // 注册 SessionHolder，保存到 ThreadLocal 实例中，以便线程隔离
         TransactionSynchronizationManager.registerSynchronization(new SqlSessionSynchronization(holder, sessionFactory));
         holder.setSynchronizedWithTransaction(true);
         holder.requested();

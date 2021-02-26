@@ -15,12 +15,12 @@
  */
 package org.mybatis.spring;
 
-import static java.lang.reflect.Proxy.newProxyInstance;
-import static org.apache.ibatis.reflection.ExceptionUtil.unwrapThrowable;
-import static org.mybatis.spring.SqlSessionUtils.closeSqlSession;
-import static org.mybatis.spring.SqlSessionUtils.getSqlSession;
-import static org.mybatis.spring.SqlSessionUtils.isSqlSessionTransactional;
-import static org.springframework.util.Assert.notNull;
+import org.apache.ibatis.cursor.Cursor;
+import org.apache.ibatis.exceptions.PersistenceException;
+import org.apache.ibatis.executor.BatchResult;
+import org.apache.ibatis.session.*;
+import org.springframework.beans.factory.DisposableBean;
+import org.springframework.dao.support.PersistenceExceptionTranslator;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -28,17 +28,10 @@ import java.sql.Connection;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.ibatis.cursor.Cursor;
-import org.apache.ibatis.exceptions.PersistenceException;
-import org.apache.ibatis.executor.BatchResult;
-import org.apache.ibatis.session.Configuration;
-import org.apache.ibatis.session.ExecutorType;
-import org.apache.ibatis.session.ResultHandler;
-import org.apache.ibatis.session.RowBounds;
-import org.apache.ibatis.session.SqlSession;
-import org.apache.ibatis.session.SqlSessionFactory;
-import org.springframework.beans.factory.DisposableBean;
-import org.springframework.dao.support.PersistenceExceptionTranslator;
+import static java.lang.reflect.Proxy.newProxyInstance;
+import static org.apache.ibatis.reflection.ExceptionUtil.unwrapThrowable;
+import static org.mybatis.spring.SqlSessionUtils.*;
+import static org.springframework.util.Assert.notNull;
 
 /**
  * Thread safe, Spring managed, {@code SqlSession} that works with Spring
@@ -73,6 +66,9 @@ import org.springframework.dao.support.PersistenceExceptionTranslator;
  *
  * @see SqlSessionFactory
  * @see MyBatisExceptionTranslator
+ *
+ * SqlSessionTemplate 是 MyBatis 中 SqlSession 的一个实现类，并且持有 SqlSession 的一个代理对象 sqlSessionProxy，
+ * 用于获取 DefaultSqlSession 实例
  */
 public class SqlSessionTemplate implements SqlSession, DisposableBean {
 
@@ -80,6 +76,9 @@ public class SqlSessionTemplate implements SqlSession, DisposableBean {
 
   private final ExecutorType executorType;
 
+  /**
+   * MyBatis SqlSession 的代理对象，用于获取 DefaultSqlSession 实例
+   */
   private final SqlSession sqlSessionProxy;
 
   private final PersistenceExceptionTranslator exceptionTranslator;
@@ -132,6 +131,8 @@ public class SqlSessionTemplate implements SqlSession, DisposableBean {
     this.sqlSessionFactory = sqlSessionFactory;
     this.executorType = executorType;
     this.exceptionTranslator = exceptionTranslator;
+
+    // 创建 SqlSession 的动态代理对象，织入 DefaultSqlSession 对象获取逻辑
     this.sqlSessionProxy = (SqlSession) newProxyInstance(
         SqlSessionFactory.class.getClassLoader(),
         new Class[] { SqlSession.class },
@@ -315,6 +316,7 @@ public class SqlSessionTemplate implements SqlSession, DisposableBean {
    */
   @Override
   public <T> T getMapper(Class<T> type) {
+    // 通过 MyBatis API 获取 Mapper 接口的代理对象
     return getConfiguration().getMapper(type, this);
   }
 
@@ -425,6 +427,7 @@ public class SqlSessionTemplate implements SqlSession, DisposableBean {
   private class SqlSessionInterceptor implements InvocationHandler {
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+      // 获取 DefaultSqlSession 实例
       SqlSession sqlSession = getSqlSession(
           SqlSessionTemplate.this.sqlSessionFactory,
           SqlSessionTemplate.this.executorType,

@@ -69,6 +69,10 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
 
   private Class<?> markerInterface;
 
+  /**
+   * MapperFactoryBean 实现 FactoryBean 接口，因此可以在 getObject() 方法时进行额外处理；
+   * MapperFactoryBean 继承了 SqlSessionDaoSupport 类，因此可以间接持有 SqlSessionTemplate 实例（用于代替 DefaultSqlSession 进行 SQL 操作）
+   */
   private MapperFactoryBean<?> mapperFactoryBean = new MapperFactoryBean<>();
 
   public ClassPathMapperScanner(BeanDefinitionRegistry registry) {
@@ -152,11 +156,13 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
    */
   @Override
   public Set<BeanDefinitionHolder> doScan(String... basePackages) {
+    // 扫描目录下所有类，并生成对应的 BeanDefinition，最终包装成 BeanDefinitionHolder
     Set<BeanDefinitionHolder> beanDefinitions = super.doScan(basePackages);
 
     if (beanDefinitions.isEmpty()) {
       LOGGER.warn(() -> "No MyBatis mapper was found in '" + Arrays.toString(basePackages) + "' package. Please check your configuration.");
     } else {
+      // 处理扫描解析 Mapper 接口对应的 BeanDefinition
       processBeanDefinitions(beanDefinitions);
     }
 
@@ -174,6 +180,9 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
       // the mapper interface is the original class of the bean
       // but, the actual class of the bean is MapperFactoryBean
       definition.getConstructorArgumentValues().addGenericArgumentValue(beanClassName); // issue #59
+
+      // 将 BeanDefinition 的 BeanClass 设置为 MapperFactoryBean，因此在 Spring 容器中，Mapper 接口对应的 Bean 实例类型为 MapperFactoryBean
+      // MapperFactoryBean 实现了 FactoryBean 接口，因此可以在 getObject() 方法中做一些额外处理（返回代理对象）
       definition.setBeanClass(this.mapperFactoryBean.getClass());
 
       definition.getPropertyValues().add("addToConfig", this.addToConfig);
